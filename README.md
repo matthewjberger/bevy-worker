@@ -6,7 +6,11 @@ A minimal [Bevy](https://bevyengine.org) `0.16` app that runs in a web worker vi
 
 Based on Nick Babcock's [write-up on running a Bevy app off the main thread](https://nickb.dev/blog/a-bevy-app-entirely-off-the-main-thread/).
 
+[bevy-worker-leptos](https://github.com/matthewjberger/bevy-worker-leptos) is this same Bevy app with the TypeScript page and Comlink replaced by an all-Rust frontend: a [Leptos](https://leptos.dev) page and a Rust web worker that share their message types through a `protocol` crate.
+
 For the same architecture without an engine, see [webgpu-worker](https://github.com/matthewjberger/webgpu-worker): the same worker, build, and deploy setup, but rendering with wgpu from scratch instead of Bevy. [webgpu-worker-leptos](https://github.com/matthewjberger/webgpu-worker-leptos) takes that wgpu version further and drops the TypeScript page and Comlink for an all-Rust frontend with [Leptos](https://leptos.dev) and a shared `protocol` crate.
+
+For a map of how the four repos relate, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Live demo
 
