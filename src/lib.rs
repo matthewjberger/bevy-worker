@@ -1,7 +1,9 @@
 use bevy::app::PluginsState;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::prelude::*;
-use bevy::window::{ExitCondition, RawHandleWrapper, WindowResolution, WindowWrapper};
+use bevy::window::{
+    ExitCondition, RawHandleWrapper, WindowResized, WindowResolution, WindowWrapper,
+};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use serde::{Deserialize, Serialize};
 use std::ptr::NonNull;
@@ -59,8 +61,20 @@ impl BevyApp {
     #[wasm_bindgen]
     pub fn resize(&mut self, size: CanvasSize) {
         let world = self.app.world_mut();
-        for mut window in world.query::<&mut Window>().iter_mut(world) {
+
+        let mut resized_windows = Vec::new();
+        let mut query = world.query::<(Entity, &mut Window)>();
+        for (entity, mut window) in query.iter_mut(world) {
             window.resolution.set(size.width, size.height);
+            resized_windows.push(entity);
+        }
+
+        for window in resized_windows {
+            world.send_event(WindowResized {
+                window,
+                width: size.width,
+                height: size.height,
+            });
         }
     }
 
