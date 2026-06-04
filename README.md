@@ -16,7 +16,7 @@ The page renders a spinning 3D cube and a control panel that demonstrates the cu
 
 - The wasm module reports its own JavaScript global scope (`DedicatedWorkerGlobalScope`), so the Bevy code itself confirms where it runs.
 - A "Jam main thread for 3 s" button synchronously blocks the page. The main-thread heartbeat counter freezes, but the cube keeps spinning and the panel reports how many frames Bevy advanced while the page was stalled.
-- Rotation-speed and color controls send events into the worker and update the running scene.
+- Dragging orbits the camera and the wheel zooms; rotation-speed and color controls also send events into the worker and update the running scene.
 
 ## How it works
 
@@ -25,6 +25,13 @@ The page renders a spinning 3D cube and a control panel that demonstrates the cu
 - A `PreStartup` system wraps the canvas in a custom `OffscreenWindowHandle` and attaches it as a `RawHandleWrapper`, bridging Bevy's renderer to the canvas. The handle is `unsafe impl Send + Sync`, guarded at runtime by a `ThreadId` check; the worker is single-threaded, so the promise always holds.
 - `web/src/worker.ts` initializes the module explicitly with `init({ module_or_path })` (a `?url` import, no `vite-plugin-wasm`) and drives `app.update()` from `requestAnimationFrame`.
 - `web/src/main.ts` transfers the canvas with `Comlink.transfer` and forwards control and resize events.
+
+## The page / worker bridge
+
+All communication runs over [Comlink](https://github.com/GoogleChromeLabs/comlink), in both directions:
+
+- **Page to worker:** the worker exposes methods the page calls to forward events. The offscreen canvas can't receive DOM input, so the page captures pointer drag (orbit) and wheel (zoom) on the placeholder canvas, coalesces them to at most one message per frame, and forwards them alongside the resize, rotation-speed, and color controls.
+- **Worker to page:** the page hands the worker a callback wrapped with `Comlink.proxy`, which the worker calls to push state up. It fires once with the GPU adapter name and backend that only the worker knows (shown as the panel's "renderer" line), and streams the frame counters so the fps and frame readout is push-driven rather than polled. The jam measurement still pulls `stats()` on demand for an exact before and after.
 
 ## Quickstart
 
