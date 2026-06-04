@@ -1,10 +1,11 @@
 import * as Comlink from "comlink";
-import type { WorkerApi } from "./worker";
+import type { EventSink, WorkerApi } from "./worker";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const container = document.getElementById("container")!;
 
 const contextEl = document.getElementById("context")!;
+const adapterEl = document.getElementById("adapter")!;
 const fpsEl = document.getElementById("fps")!;
 const framesEl = document.getElementById("frames")!;
 const heartbeatEl = document.getElementById("heartbeat")!;
@@ -37,9 +38,24 @@ const hexToRgb = (hex: string): [number, number, number] => [
 ];
 
 const initializeApp = async () => {
+  // The worker pushes events up through these callbacks (wrapped with
+  // Comlink.proxy so the worker gets a callable handle, not a copy). onReady
+  // carries the GPU adapter name only the worker knows; onStats streams the
+  // frame counters, replacing a main-thread polling loop.
+  const sink: EventSink = {
+    onReady: (info) => {
+      adapterEl.textContent = `${info.adapter} (${info.backend})`;
+    },
+    onStats: (stats) => {
+      fpsEl.textContent = stats.fps.toFixed(0);
+      framesEl.textContent = stats.frames.toLocaleString();
+    },
+  };
+
   const game = await worker.createGame(
     Comlink.transfer(offscreenCanvas, [offscreenCanvas]),
     { width: bounds.width * dpr, height: bounds.height * dpr },
+    Comlink.proxy(sink),
   );
 
   // Ask the wasm module which JS global scope it is running in. This is the
@@ -103,13 +119,6 @@ const initializeApp = async () => {
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
-
-  // Poll the worker for its frame count / fps and render them in the panel.
-  setInterval(async () => {
-    const stats = await game.stats();
-    fpsEl.textContent = stats.fps.toFixed(0);
-    framesEl.textContent = stats.frames.toLocaleString();
-  }, 150);
 
   speedEl.addEventListener("input", () => {
     speedValueEl.textContent = Number(speedEl.value).toFixed(1);

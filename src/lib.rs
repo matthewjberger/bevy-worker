@@ -1,6 +1,7 @@
 use bevy::app::PluginsState;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::prelude::*;
+use bevy::render::renderer::RenderAdapterInfo;
 use bevy::window::{
     ExitCondition, RawHandleWrapper, WindowResized, WindowResolution, WindowWrapper,
 };
@@ -112,6 +113,23 @@ impl BevyApp {
         }
     }
 
+    #[wasm_bindgen]
+    pub fn ready(&self) -> bool {
+        self.app
+            .world()
+            .get_resource::<RenderAdapterInfo>()
+            .is_some()
+    }
+
+    #[wasm_bindgen]
+    pub fn adapter_info(&self) -> AdapterInfo {
+        let info = self.app.world().resource::<RenderAdapterInfo>();
+        AdapterInfo {
+            adapter: info.name.clone(),
+            backend: format!("{:?}", info.backend),
+        }
+    }
+
     // Reports the name of the JavaScript global scope this wasm module is
     // executing in. In a worker it returns "DedicatedWorkerGlobalScope", on the
     // main thread it would return "Window". This is the direct proof that the
@@ -141,6 +159,13 @@ pub struct CanvasSize {
 pub struct Stats {
     frames: f64,
     fps: f32,
+}
+
+#[derive(Clone, Serialize, Deserialize, tsify_next::Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct AdapterInfo {
+    adapter: String,
+    backend: String,
 }
 
 #[derive(Resource)]
