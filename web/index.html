@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bevy off the main thread</title>
+    <style>
+      :root {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color-scheme: dark;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0c0d12;
+        color: #e6e6ea;
+      }
+      #container {
+        position: fixed;
+        inset: 0;
+      }
+      #canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #panel {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        width: 340px;
+        padding: 16px 18px;
+        background: rgba(14, 16, 24, 0.82);
+        border: 1px solid #2a2e3f;
+        border-radius: 10px;
+        backdrop-filter: blur(6px);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      #panel h1 {
+        font-size: 15px;
+        margin: 0 0 6px;
+      }
+      #panel p {
+        margin: 0 0 12px;
+        color: #9aa0b4;
+      }
+      .context {
+        margin: 0 0 14px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: #14301f;
+        border: 1px solid #1f5c39;
+        color: #7ee0a3;
+        word-break: break-all;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .stat {
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: #161a26;
+        border: 1px solid #262b3c;
+      }
+      .stat .label {
+        color: #8a90a6;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .stat .value {
+        font-size: 20px;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat.jammed {
+        border-color: #5c1f1f;
+        background: #2a1414;
+      }
+      .stat.jammed .value {
+        color: #ff8a8a;
+      }
+      label.control {
+        display: block;
+        margin-bottom: 12px;
+      }
+      label.control .row {
+        display: flex;
+        justify-content: space-between;
+        color: #9aa0b4;
+        margin-bottom: 4px;
+      }
+      input[type="range"] {
+        width: 100%;
+      }
+      input[type="color"] {
+        width: 100%;
+        height: 30px;
+        background: none;
+        border: 1px solid #262b3c;
+        border-radius: 6px;
+      }
+      button {
+        width: 100%;
+        padding: 10px;
+        font: inherit;
+        color: #fff;
+        background: #b4452f;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #c84e36;
+      }
+      .result {
+        margin-top: 10px;
+        min-height: 34px;
+        color: #cfd3e0;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="panel">
+      <h1>Bevy 0.16, off the main thread</h1>
+      <p>
+        The cube, ECS, and renderer run inside a web worker. The page only
+        forwards events. Jam the main thread and watch the cube keep spinning.
+      </p>
+
+      <div class="context">
+        Bevy executes in: <span id="context">checking…</span>
+      </div>
+
+      <div class="stats">
+        <div class="stat" id="workerStat">
+          <div class="label">Worker (Bevy)</div>
+          <div class="value"><span id="fps">0</span> fps</div>
+          <div class="label"><span id="frames">0</span> frames</div>
+        </div>
+        <div class="stat" id="mainStat">
+          <div class="label">Main thread</div>
+          <div class="value"><span id="heartbeat">0</span></div>
+          <div class="label">heartbeat ticks</div>
+        </div>
+      </div>
+
+      <label class="control">
+        <div class="row"><span>Rotation speed</span><span id="speedValue">1.0</span></div>
+        <input id="speed" type="range" min="0" max="5" step="0.1" value="1" />
+      </label>
+
+      <label class="control">
+        <div class="row"><span>Cube color</span></div>
+        <input id="color" type="color" value="#4d80e6" />
+      </label>
+
+      <button id="jam">Jam main thread for 3 s</button>
+      <div class="result" id="jamResult"></div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
