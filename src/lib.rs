@@ -33,10 +33,14 @@ impl BevyApp {
         }))
         .insert_resource(Controls::default())
         .insert_resource(OrbitCamera::default())
+        .insert_resource(Pick::default())
         .init_resource::<FrameStats>()
         .add_systems(PreStartup, setup_added_window)
         .add_systems(Startup, setup)
-        .add_systems(Update, (spin, apply_controls, track_stats, orbit_camera));
+        .add_systems(
+            Update,
+            (spin, apply_controls, track_stats, orbit_camera, apply_pick),
+        );
 
         app.insert_non_send_resource(canvas);
 
@@ -124,6 +128,37 @@ impl BevyApp {
             })
     }
 
+    #[wasm_bindgen]
+    pub fn pick(&mut self, x: f32, y: f32) -> Option<PickResult> {
+        let world = self.app.world_mut();
+
+        let (near, far) = {
+            let mut query = world.query::<(&Camera, &GlobalTransform)>();
+            let (camera, transform) = query.iter(world).next()?;
+            let near = camera.ndc_to_world(transform, Vec3::new(x, y, 1.0))?;
+            let far = camera.ndc_to_world(transform, Vec3::new(x, y, 0.0))?;
+            (near, far)
+        };
+
+        let model = {
+            let mut query = world.query_filtered::<&GlobalTransform, With<Spinner>>();
+            query.iter(world).next()?.compute_matrix()
+        };
+
+        let inverse_model = model.inverse();
+        let origin = inverse_model.transform_point3(near);
+        let direction = inverse_model.transform_vector3(far - near).normalize();
+
+        let (point, face) = ray_cube_hit(origin, direction, 0.75)?;
+        world.resource_mut::<Pick>().point = Some(point);
+        Some(PickResult {
+            face: face.to_string(),
+            x: point.x,
+            y: point.y,
+            z: point.z,
+        })
+    }
+
     // Reports the name of the JavaScript global scope this wasm module is
     // executing in. In a worker it returns "DedicatedWorkerGlobalScope", on the
     // main thread it would return "Window". This is the direct proof that the
@@ -160,6 +195,15 @@ pub struct Stats {
 pub struct AdapterInfo {
     adapter: String,
     backend: String,
+}
+
+#[derive(Clone, Serialize, Deserialize, tsify_next::Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct PickResult {
+    face: String,
+    x: f32,
+    y: f32,
+    z: f32,
 }
 
 #[derive(Resource)]
@@ -210,6 +254,87 @@ fn orbit_camera(camera: Res<OrbitCamera>, mut query: Query<&mut Transform, With<
 }
 
 #[derive(Resource, Default)]
+struct Pick {
+    point: Option<Vec3>,
+}
+
+#[derive(Component)]
+struct PickMarker;
+
+fn apply_pick(
+    pick: Res<Pick>,
+    mut query: Query<(&mut Transform, &mut Visibility), With<PickMarker>>,
+) {
+    for (mut transform, mut visibility) in &mut query {
+        match pick.point {
+            Some(point) => {
+                transform.translation = point;
+                *visibility = Visibility::Visible;
+            }
+            None => {
+                *visibility = Visibility::Hidden;
+            }
+        }
+    }
+}
+
+fn ray_cube_hit(origin: Vec3, direction: Vec3, half: f32) -> Option<(Vec3, &'static str)> {
+    let origin = origin.to_array();
+    let direction = direction.to_array();
+    let mut t_min = f32::NEG_INFINITY;
+    let mut t_max = f32::INFINITY;
+    let mut axis = 0;
+    let mut sign = -1.0;
+    for index in 0..3 {
+        let o = origin[index];
+        let d = direction[index];
+        if d.abs() < 1e-6 {
+            if o < -half || o > half {
+                return None;
+            }
+            continue;
+        }
+        let inverse = 1.0 / d;
+        let mut t1 = (-half - o) * inverse;
+        let mut t2 = (half - o) * inverse;
+        let mut entry_sign = -1.0;
+        if t1 > t2 {
+            std::mem::swap(&mut t1, &mut t2);
+            entry_sign = 1.0;
+        }
+        if t1 > t_min {
+            t_min = t1;
+            axis = index;
+            sign = entry_sign;
+        }
+        if t2 < t_max {
+            t_max = t2;
+        }
+        if t_min > t_max {
+            return None;
+        }
+    }
+    if t_max < 0.0 {
+        return None;
+    }
+    let t = if t_min >= 0.0 { t_min } else { t_max };
+    let point = Vec3::new(
+        origin[0] + direction[0] * t,
+        origin[1] + direction[1] * t,
+        origin[2] + direction[2] * t,
+    );
+    let face = match (axis, sign > 0.0) {
+        (0, true) => "+X",
+        (0, false) => "-X",
+        (1, true) => "+Y",
+        (1, false) => "-Y",
+        (2, true) => "+Z",
+        _ => "-Z",
+    };
+    Some((point, face))
+}
+
+#[derive(Resource, Default)]
 struct FrameStats {
     frames: u64,
     fps: f32,
@@ -236,12 +361,29 @@ fn setup(
     });
     commands.insert_resource(CubeMaterial(material.clone()));
 
-    commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(1.5, 1.5, 1.5))),
-        MeshMaterial3d(material),
-        Transform::default(),
-        Spinner,
-    ));
+    let marker_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(1.0, 0.5, 0.1),
+        unlit: true,
+        ..default()
+    });
+    let marker_mesh = meshes.add(Sphere::new(0.08));
+
+    commands
+        .spawn((
+            Mesh3d(meshes.add(Cuboid::new(1.5, 1.5, 1.5))),
+            MeshMaterial3d(material),
+            Transform::default(),
+            Spinner,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Mesh3d(marker_mesh),
+                MeshMaterial3d(marker_material),
+                Transform::default(),
+                Visibility::Hidden,
+                PickMarker,
+            ));
+        });
 
     commands.spawn((
         DirectionalLight {

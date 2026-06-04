@@ -15,6 +15,7 @@ const speedValueEl = document.getElementById("speedValue")!;
 const colorEl = document.getElementById("color") as HTMLInputElement;
 const jamEl = document.getElementById("jam") as HTMLButtonElement;
 const jamResultEl = document.getElementById("jamResult")!;
+const pickEl = document.getElementById("pick")!;
 
 const dpr = window.devicePixelRatio;
 const bounds = container.getBoundingClientRect();
@@ -71,23 +72,41 @@ const initializeApp = async () => {
   let pendingPitch = 0;
   let pendingZoom = 0;
   let dragging = false;
+  let pointerMoved = 0;
 
   canvas.addEventListener("pointerdown", (event) => {
     dragging = true;
+    pointerMoved = 0;
     canvas.setPointerCapture(event.pointerId);
     canvas.style.cursor = "grabbing";
   });
-  const endDrag = (event: PointerEvent) => {
+  canvas.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    pointerMoved += Math.abs(event.movementX) + Math.abs(event.movementY);
+    pendingYaw += event.movementX;
+    pendingPitch += event.movementY;
+  });
+  canvas.addEventListener("pointercancel", (event) => {
     dragging = false;
     canvas.releasePointerCapture(event.pointerId);
     canvas.style.cursor = "grab";
-  };
-  canvas.addEventListener("pointerup", endDrag);
-  canvas.addEventListener("pointercancel", endDrag);
-  canvas.addEventListener("pointermove", (event) => {
-    if (!dragging) return;
-    pendingYaw += event.movementX;
-    pendingPitch += event.movementY;
+  });
+  // A pointerup that barely moved is a click: map it to canvas-local normalized
+  // device coordinates and ask the worker what was hit.
+  canvas.addEventListener("pointerup", async (event) => {
+    const wasClick = dragging && pointerMoved < 4;
+    dragging = false;
+    canvas.releasePointerCapture(event.pointerId);
+    canvas.style.cursor = "grab";
+    if (!wasClick) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+    const hit = await game.pick(ndcX, ndcY);
+    pickEl.textContent = hit
+      ? `${hit.face} at (${hit.x.toFixed(2)}, ${hit.y.toFixed(2)}, ${hit.z.toFixed(2)})`
+      : "no hit";
   });
   canvas.addEventListener(
     "wheel",

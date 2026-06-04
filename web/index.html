@@ -124,6 +124,13 @@
         color: #cfd3e0;
         font-size: 12px;
       }
+      .pick {
+        color: #9aa0b4;
+        font-size: 12px;
+      }
+      .pick span {
+        color: #cfd3e0;
+      }
     </style>
   </head>
   <body>
@@ -135,8 +142,8 @@
       <h1>Bevy 0.16, off the main thread</h1>
       <p>
         The cube, ECS, and renderer run inside a web worker. The page only
-        forwards events: drag to orbit, scroll to zoom. Jam the main thread and
-        watch the cube keep spinning.
+        forwards events: drag to orbit, scroll to zoom, click to mark a spot. Jam
+        the main thread and watch the cube keep spinning.
       </p>
 
       <div class="context">
@@ -169,6 +176,7 @@
 
       <button id="jam">Jam main thread for 3 s</button>
       <div class="result" id="jamResult"></div>
+      <div class="pick">Picked: <span id="pick">click the cube to mark a spot</span></div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>
