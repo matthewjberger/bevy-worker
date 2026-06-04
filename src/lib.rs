@@ -132,12 +132,12 @@ impl BevyApp {
     pub fn pick(&mut self, x: f32, y: f32) -> Option<PickResult> {
         let world = self.app.world_mut();
 
-        let (near, far) = {
+        let ray = {
             let mut query = world.query::<(&Camera, &GlobalTransform)>();
             let (camera, transform) = query.iter(world).next()?;
-            let near = camera.ndc_to_world(transform, Vec3::new(x, y, 1.0))?;
-            let far = camera.ndc_to_world(transform, Vec3::new(x, y, 0.0))?;
-            (near, far)
+            let viewport = camera.logical_viewport_size()?;
+            let position = Vec2::new((x + 1.0) * 0.5 * viewport.x, (1.0 - y) * 0.5 * viewport.y);
+            camera.viewport_to_world(transform, position).ok()?
         };
 
         let model = {
@@ -146,8 +146,10 @@ impl BevyApp {
         };
 
         let inverse_model = model.inverse();
-        let origin = inverse_model.transform_point3(near);
-        let direction = inverse_model.transform_vector3(far - near).normalize();
+        let origin = inverse_model.transform_point3(ray.origin);
+        let direction = inverse_model
+            .transform_vector3(ray.direction.as_vec3())
+            .normalize();
 
         let (point, face) = ray_cube_hit(origin, direction, 0.75)?;
         world.resource_mut::<Pick>().point = Some(point);
@@ -366,7 +368,7 @@ fn setup(
         unlit: true,
         ..default()
     });
-    let marker_mesh = meshes.add(Sphere::new(0.08));
+    let marker_mesh = meshes.add(Sphere::new(0.1));
 
     commands
         .spawn((
