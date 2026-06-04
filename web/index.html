@@ -24,6 +24,7 @@
         display: block;
         width: 100%;
         height: 100%;
+        cursor: grab;
       }
       #panel {
         position: fixed;
@@ -134,7 +135,8 @@
       <h1>Bevy 0.16, off the main thread</h1>
       <p>
         The cube, ECS, and renderer run inside a web worker. The page only
-        forwards events. Jam the main thread and watch the cube keep spinning.
+        forwards events: drag to orbit, scroll to zoom. Jam the main thread and
+        watch the cube keep spinning.
       </p>
 
       <div class="context">

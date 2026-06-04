@@ -46,12 +46,60 @@ const initializeApp = async () => {
   // proof: the Bevy app reports "DedicatedWorkerGlobalScope", not "Window".
   contextEl.textContent = `${await game.context()} (off the main thread)`;
 
+  // Forward pointer drag and wheel from the placeholder canvas to the worker.
+  // The offscreen canvas can't receive DOM events, so the main thread captures
+  // them here and the worker renders the result. Deltas accumulate and flush
+  // once per frame (in the heartbeat tick), so a burst of pointermove/wheel
+  // events becomes at most two messages per frame.
+  let pendingYaw = 0;
+  let pendingPitch = 0;
+  let pendingZoom = 0;
+  let dragging = false;
+
+  canvas.addEventListener("pointerdown", (event) => {
+    dragging = true;
+    canvas.setPointerCapture(event.pointerId);
+    canvas.style.cursor = "grabbing";
+  });
+  const endDrag = (event: PointerEvent) => {
+    dragging = false;
+    canvas.releasePointerCapture(event.pointerId);
+    canvas.style.cursor = "grab";
+  };
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+  canvas.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    pendingYaw += event.movementX;
+    pendingPitch += event.movementY;
+  });
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      pendingZoom += event.deltaY;
+    },
+    { passive: false },
+  );
+
   // Main-thread heartbeat. This freezes the instant the main thread is blocked,
-  // unlike the worker frame counter, which keeps climbing.
+  // unlike the worker frame counter, which keeps climbing. It also flushes the
+  // accumulated camera input once per frame.
   let heartbeat = 0;
   const tick = () => {
     heartbeat += 1;
     heartbeatEl.textContent = String(heartbeat);
+
+    if (pendingYaw !== 0 || pendingPitch !== 0) {
+      game.orbit(pendingYaw, pendingPitch);
+      pendingYaw = 0;
+      pendingPitch = 0;
+    }
+    if (pendingZoom !== 0) {
+      game.zoom(pendingZoom);
+      pendingZoom = 0;
+    }
+
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);

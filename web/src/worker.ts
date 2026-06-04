@@ -33,6 +33,9 @@ const createGame = async (...args: ConstructorParameters<typeof BevyApp>) => {
     setSpeed: (speed: number) => app.set_speed(speed),
     setColor: (red: number, green: number, blue: number) =>
       app.set_color(red, green, blue),
+    orbit: (deltaYaw: number, deltaPitch: number) =>
+      app.orbit(deltaYaw, deltaPitch),
+    zoom: (amount: number) => app.zoom(amount),
     stats: () => app.stats(),
     context: () => app.context(),
   });
@@ -45,6 +48,8 @@ export type GameApi = {
   resize: (size: CanvasSize) => void;
   setSpeed: (speed: number) => void;
   setColor: (red: number, green: number, blue: number) => void;
+  orbit: (deltaYaw: number, deltaPitch: number) => void;
+  zoom: (amount: number) => void;
   stats: () => Stats;
   context: () => string;
 };

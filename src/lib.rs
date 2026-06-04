@@ -31,10 +31,11 @@ impl BevyApp {
             ..default()
         }))
         .insert_resource(Controls::default())
+        .insert_resource(OrbitCamera::default())
         .init_resource::<FrameStats>()
         .add_systems(PreStartup, setup_added_window)
         .add_systems(Startup, setup)
-        .add_systems(Update, (spin, apply_controls, track_stats));
+        .add_systems(Update, (spin, apply_controls, track_stats, orbit_camera));
 
         app.insert_non_send_resource(canvas);
 
@@ -89,6 +90,20 @@ impl BevyApp {
     }
 
     #[wasm_bindgen]
+    pub fn orbit(&mut self, delta_yaw: f32, delta_pitch: f32) {
+        let mut camera = self.app.world_mut().resource_mut::<OrbitCamera>();
+        camera.yaw -= delta_yaw * ORBIT_SENSITIVITY;
+        camera.pitch =
+            (camera.pitch + delta_pitch * ORBIT_SENSITIVITY).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+    }
+
+    #[wasm_bindgen]
+    pub fn zoom(&mut self, amount: f32) {
+        let mut camera = self.app.world_mut().resource_mut::<OrbitCamera>();
+        camera.distance = (camera.distance + amount * ZOOM_SENSITIVITY).clamp(2.0, 20.0);
+    }
+
+    #[wasm_bindgen]
     pub fn stats(&self) -> Stats {
         let stats = self.app.world().resource::<FrameStats>();
         Stats {
@@ -140,6 +155,38 @@ impl Default for Controls {
             speed: 1.0,
             color: Color::srgb(0.3, 0.5, 0.9),
         }
+    }
+}
+
+const ORBIT_SENSITIVITY: f32 = 0.005;
+const ZOOM_SENSITIVITY: f32 = 0.01;
+const PITCH_LIMIT: f32 = 1.5;
+
+#[derive(Resource)]
+struct OrbitCamera {
+    yaw: f32,
+    pitch: f32,
+    distance: f32,
+}
+
+impl Default for OrbitCamera {
+    fn default() -> Self {
+        Self {
+            yaw: 0.0,
+            pitch: 0.32,
+            distance: 6.3,
+        }
+    }
+}
+
+fn orbit_camera(camera: Res<OrbitCamera>, mut query: Query<&mut Transform, With<Camera3d>>) {
+    let eye = Vec3::new(
+        camera.distance * camera.pitch.cos() * camera.yaw.sin(),
+        camera.distance * camera.pitch.sin(),
+        camera.distance * camera.pitch.cos() * camera.yaw.cos(),
+    );
+    for mut transform in &mut query {
+        *transform = Transform::from_translation(eye).looking_at(Vec3::ZERO, Vec3::Y);
     }
 }
 
