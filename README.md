@@ -4,6 +4,8 @@ A minimal [Bevy](https://bevyengine.org) `0.16` app that runs in a web worker vi
 
 Based on Nick Babcock's [write-up on running a Bevy app off the main thread](https://nickb.dev/blog/a-bevy-app-entirely-off-the-main-thread/).
 
+For the same architecture without an engine, see [webgpu-worker](https://github.com/matthewjberger/webgpu-worker): the same worker, build, and deploy setup, but rendering with wgpu from scratch instead of Bevy.
+
 ## Live demo
 
 [matthewberger.dev/bevy-worker](https://matthewberger.dev/bevy-worker/). Needs a browser with WebGPU and `OffscreenCanvas`-in-workers support (Chromium 113+, Firefox 141+).
