@@ -2,9 +2,11 @@
 
 A minimal [Bevy](https://bevyengine.org) `0.16` app that runs in a web worker via WebAssembly. No `winit`, and no Bevy code on the main thread: the worker owns an `OffscreenCanvas`, drives the schedule with `requestAnimationFrame`, and renders through WebGPU. The main thread only transfers the canvas and forwards events over [Comlink](https://github.com/GoogleChromeLabs/comlink).
 
+![A lit, spinning cube rendered by Bevy inside a web worker, with the control panel reporting the worker scope, fps, and a picked face marker.](docs/screenshot.png)
+
 Based on Nick Babcock's [write-up on running a Bevy app off the main thread](https://nickb.dev/blog/a-bevy-app-entirely-off-the-main-thread/).
 
-For the same architecture without an engine, see [webgpu-worker](https://github.com/matthewjberger/webgpu-worker): the same worker, build, and deploy setup, but rendering with wgpu from scratch instead of Bevy.
+For the same architecture without an engine, see [webgpu-worker](https://github.com/matthewjberger/webgpu-worker): the same worker, build, and deploy setup, but rendering with wgpu from scratch instead of Bevy. [webgpu-worker-leptos](https://github.com/matthewjberger/webgpu-worker-leptos) takes that wgpu version further and drops the TypeScript page and Comlink for an all-Rust frontend with [Leptos](https://leptos.dev) and a shared `protocol` crate.
 
 ## Live demo
 
