@@ -36,9 +36,10 @@ const createGame = async (
   function update() {
     app.update();
 
-    if (!reportedReady && app.ready()) {
+    const info = reportedReady ? undefined : app.adapter_info();
+    if (info) {
       reportedReady = true;
-      events.onReady(app.adapter_info());
+      events.onReady(info);
     }
 
     const now = performance.now();

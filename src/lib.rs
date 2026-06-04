@@ -114,20 +114,14 @@ impl BevyApp {
     }
 
     #[wasm_bindgen]
-    pub fn ready(&self) -> bool {
+    pub fn adapter_info(&self) -> Option<AdapterInfo> {
         self.app
             .world()
             .get_resource::<RenderAdapterInfo>()
-            .is_some()
-    }
-
-    #[wasm_bindgen]
-    pub fn adapter_info(&self) -> AdapterInfo {
-        let info = self.app.world().resource::<RenderAdapterInfo>();
-        AdapterInfo {
-            adapter: info.name.clone(),
-            backend: format!("{:?}", info.backend),
-        }
+            .map(|info| AdapterInfo {
+                adapter: info.name.clone(),
+                backend: format!("{:?}", info.backend),
+            })
     }
 
     // Reports the name of the JavaScript global scope this wasm module is
